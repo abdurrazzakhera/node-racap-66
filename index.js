@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const app = express();
@@ -8,6 +9,23 @@ const port = process.env.PORT || 5000;
 //mibleware for backend
 app.use(cors());
 app.use(express.json());
+
+function varifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SCREAT, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    console.log("decoded", decoded);
+    req.decoded = decoded;
+    next();
+  });
+  console.log("inside jwt varify ", authHeader);
+}
 
 app.get("/", (req, res) => {
   res.send("Hello I am from backend");
@@ -25,7 +43,16 @@ async function run() {
   try {
     await client.connect();
     const serviceCollection = client.db("geniusCar").collection("carServices");
+    const orderCollection = client.db("geniusCar").collection("order");
     // console.log("db connect aassssssssss");
+    //auth user
+    app.post("/login", async (req, res) => {
+      const user = req.body;
+      const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SCREAT, {
+        expiresIn: "1d",
+      });
+      res.send({ accessToken });
+    });
     //Multiple user call form database;
     app.get("/service", async (req, res) => {
       const query = {};
@@ -47,6 +74,25 @@ async function run() {
       const newUser = req.body;
       const addService = await serviceCollection.insertOne(newUser);
       res.send(addService);
+    });
+
+    //call the order
+    app.get("/order", varifyJWT, async (req, res) => {
+      const decodedEmail = req.decoded?.email;
+      const email = req.query.email;
+      if (email === decodedEmail) {
+        const query = { email: email };
+        const cursor = orderCollection.find(query);
+        const resutl = await cursor.toArray();
+        res.send(resutl);
+      }
+    });
+
+    //Post A New Order
+    app.post("/order", async (req, res) => {
+      const order = req.body;
+      const result = await orderCollection.insertOne(order);
+      res.send(result);
     });
 
     // post delete Api

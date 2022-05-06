@@ -31,6 +31,10 @@ app.get("/", (req, res) => {
   res.send("Hello I am from backend");
 });
 
+app.get("/hero", (req, res) => {
+  res.send("Hello This Is Hiro");
+});
+
 // Mongo DB connect
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.6optc.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
